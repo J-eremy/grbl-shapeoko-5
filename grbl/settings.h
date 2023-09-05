@@ -149,5 +149,8 @@ uint8_t get_direction_pin_mask(uint8_t i);
 // Returns the limit pin mask according to Grbl's internal axis numbering
 uint8_t get_limit_pin_mask(uint8_t i);
 
+uint8_t get_laser_enabled(void);
+
+void set_laser_enabled(uint8_t enabled);
 
 #endif

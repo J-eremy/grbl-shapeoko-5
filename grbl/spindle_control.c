@@ -24,11 +24,33 @@
 
 #ifdef VARIABLE_SPINDLE
   static float pwm_gradient; // Precalulated value to speed up rpm to PWM conversions.
+  static float laser_gradient; // Precalulated value to speed up laser power to PWM conversions.
+  static float laser_minimum;
 #endif
 
+#ifdef ENABLE_LASER_PORT
+void laser_mode_init()
+{
+  LASER_PORT_CONTROL_DDR |= (1 << LASER_PORT_CONTROL_BIT); // Configure as output pin
+  laser_mode_set_state(get_laser_enabled());
+}
+
+void laser_mode_set_state(uint8_t state)
+{
+  if(state)
+    LASER_PORT_CONTROL_PORT |= (1 << LASER_PORT_CONTROL_BIT);
+  else
+    LASER_PORT_CONTROL_PORT &= ~(1 << LASER_PORT_CONTROL_BIT);
+}
+
+#endif
 
 void spindle_init()
 {
+  #ifdef ENABLE_LASER_PORT
+    laser_mode_init();
+  #endif
+
   #ifdef VARIABLE_SPINDLE
     // Configure variable spindle PWM and enable pin, if requried. On the Uno, PWM and enable are
     // combined unless configured otherwise.
@@ -43,6 +65,9 @@ void spindle_init()
       #endif
     #endif
     pwm_gradient = SPINDLE_PWM_RANGE/(settings.rpm_max-settings.rpm_min);
+    // laser_gradient = SPINDLE_PWM_RANGE/(LASER_MAX_S_VALUE);
+    laser_gradient = SPINDLE_PWM_MAX_VALUE/(LASER_MAX_S_VALUE);
+    laser_minimum = 0;
   #else
     SPINDLE_ENABLE_DDR |= (1<<SPINDLE_ENABLE_BIT); // Configure as output pin.
     #ifndef ENABLE_DUAL_AXIS
@@ -193,6 +218,25 @@ void spindle_stop()
     {
       uint8_t pwm_value;
       rpm *= (0.010*sys.spindle_speed_ovr); // Scale by spindle speed override value.
+
+      if(get_laser_enabled()) {
+        
+        if(rpm < 0.0) {
+          sys.spindle_speed = 0.0;
+          return SPINDLE_PWM_OFF_VALUE;
+        }
+
+        if(rpm > LASER_MAX_S_VALUE) {
+          sys.spindle_speed = LASER_MAX_S_VALUE;
+          return SPINDLE_PWM_MAX_VALUE;
+        }
+
+        sys.spindle_speed = rpm;
+        // pwm_value = SPINDLE_PWM_MIN_VALUE + floor((rpm)*laser_gradient);
+        pwm_value = laser_minimum + floor((rpm)*laser_gradient);
+        return(pwm_value);
+      }
+
       // Calculate PWM register value based on rpm max/min settings and programmed rpm.
       if ((settings.rpm_min >= settings.rpm_max) || (rpm >= settings.rpm_max)) {
         // No PWM range possible. Set simple on/off spindle control pin state.
@@ -249,7 +293,7 @@ void spindle_stop()
   
     #ifdef VARIABLE_SPINDLE
       // NOTE: Assumes all calls to this function is when Grbl is not moving or must remain off.
-      if (settings.flags & BITFLAG_LASER_MODE) { 
+      if (get_laser_enabled()) { 
         if (state == SPINDLE_ENABLE_CCW) { rpm = 0.0; } // TODO: May need to be rpm_min*(100/MAX_SPINDLE_SPEED_OVERRIDE);
       }
       spindle_set_speed(spindle_compute_pwm_value(rpm));

@@ -23,6 +23,11 @@
 
 settings_t settings;
 
+
+#ifdef ENABLE_LASER_PORT
+uint8_t laser_port_enabled=0;
+#endif
+
 const __flash settings_t defaults = {\
     .pulse_microseconds = DEFAULT_STEP_PULSE_MICROSECONDS,
     .stepper_idle_lock_time = DEFAULT_STEPPER_IDLE_LOCK_TIME,
@@ -211,6 +216,14 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
             #ifdef MAX_STEP_RATE_HZ
               if (value*settings.steps_per_mm[parameter] > (MAX_STEP_RATE_HZ*60.0)) {  return(STATUS_MAX_STEP_RATE_EXCEEDED); }
             #endif
+            #ifdef MAX_XY_FEEDRATE
+              if((parameter == 0 || parameter == 1) && value > (float)MAX_XY_FEEDRATE)
+                value = MAX_XY_FEEDRATE;
+            #endif
+            #ifdef MAX_Z_FEEDRATE
+              if(parameter == 2 && value > (float)MAX_Z_FEEDRATE)
+                value = MAX_Z_FEEDRATE;
+            #endif
             settings.max_rate[parameter] = value;
             break;
           case 2: settings.acceleration[parameter] = value*60*60; break; // Convert to mm/min^2 for grbl internal use.
@@ -288,8 +301,13 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
       case 31: settings.rpm_min = value; spindle_init(); break; // Re-initialize spindle rpm calibration
       case 32:
         #ifdef VARIABLE_SPINDLE
-          if (int_value) { settings.flags |= BITFLAG_LASER_MODE; }
-          else { settings.flags &= ~BITFLAG_LASER_MODE; }
+          // if (int_value) { settings.flags |= BITFLAG_LASER_MODE; }
+          // else { settings.flags &= ~BITFLAG_LASER_MODE; }
+          set_laser_enabled(int_value);
+          #ifdef ENABLE_LASER_PORT
+            //No need to write anything if it will not be persisted
+            return(STATUS_OK);
+          #endif
         #else
           return(STATUS_SETTING_DISABLED_LASER);
         #endif
@@ -337,4 +355,28 @@ uint8_t get_limit_pin_mask(uint8_t axis_idx)
   if ( axis_idx == X_AXIS ) { return((1<<X_LIMIT_BIT)); }
   if ( axis_idx == Y_AXIS ) { return((1<<Y_LIMIT_BIT)); }
   return((1<<Z_LIMIT_BIT));
+}
+
+uint8_t get_laser_enabled(void)
+{
+  #ifdef ENABLE_LASER_PORT
+    return laser_port_enabled;
+  #else
+    #ifdef VARIABLE_SPINDLE
+      return(bit_istrue(settings.flags,BITFLAG_LASER_MODE));
+    #else
+      return(0);
+    #endif
+  #endif
+}
+
+void set_laser_enabled(uint8_t enabled)
+{
+  #ifdef ENABLE_LASER_PORT
+    laser_port_enabled = enabled > 0;
+    laser_mode_set_state(laser_port_enabled);
+  #else
+    if (enabled) { settings.flags |= BITFLAG_LASER_MODE; }
+    else { settings.flags &= ~BITFLAG_LASER_MODE; }
+  #endif
 }

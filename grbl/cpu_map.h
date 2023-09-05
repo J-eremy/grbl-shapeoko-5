@@ -62,6 +62,7 @@
   #define LIMIT_PORT       PORTB
   #define X_LIMIT_BIT      1  // Uno Digital Pin 9
   #define Y_LIMIT_BIT      2  // Uno Digital Pin 10
+  #define Y2_LIMIT_BIT     0
   #ifdef VARIABLE_SPINDLE // Z Limit pin and spindle enabled swapped to access hardware PWM on Pin 11.
     #define Z_LIMIT_BIT	   4 // Uno Digital Pin 12
   #else
@@ -170,14 +171,22 @@
 
       // NOTE: Dual axis limit is shared with the z-axis limit pin by default. Pin used must be on the same port
       // as other limit pins.
-      #define DUAL_LIMIT_BIT    Z_LIMIT_BIT
+      // #define DUAL_LIMIT_BIT    Z_LIMIT_BIT
+      #define DUAL_LIMIT_BIT    Y2_LIMIT_BIT
       #define LIMIT_MASK        ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)|(1<<DUAL_LIMIT_BIT))
+
 
       // Define coolant enable output pins.
       // NOTE: Coolant flood moved from A3 to A4. Coolant mist not supported with dual axis feature on Arduino Uno.
-      #define COOLANT_FLOOD_DDR   DDRB
-      #define COOLANT_FLOOD_PORT  PORTB
-      #define COOLANT_FLOOD_BIT   5  // Uno Digital Pin 13
+      #ifdef ENABLE_LASER_PORT
+        #define LASER_PORT_CONTROL_DDR   DDRB
+        #define LASER_PORT_CONTROL_PORT  PORTB
+        #define LASER_PORT_CONTROL_BIT   5  // Uno Digital Pin 13
+      #else
+        #define COOLANT_FLOOD_DDR   DDRB
+        #define COOLANT_FLOOD_PORT  PORTB
+        #define COOLANT_FLOOD_BIT   5  // Uno Digital Pin 13
+      #endif
 
       // Define spindle enable output pin.
       // NOTE: Spindle enable moved from D12 to A3 (old coolant flood enable pin). Spindle direction pin is removed.
@@ -206,9 +215,9 @@
       // Prescaled, 8-bit Fast PWM mode.
       #define SPINDLE_TCCRA_INIT_MASK   ((1<<WGM20) | (1<<WGM21))  // Configures fast PWM mode.
       // #define SPINDLE_TCCRB_INIT_MASK   (1<<CS20)               // Disable prescaler -> 62.5kHz
-      // #define SPINDLE_TCCRB_INIT_MASK   (1<<CS21)               // 1/8 prescaler -> 7.8kHz (Used in v0.9)
+      #define SPINDLE_TCCRB_INIT_MASK   (1<<CS21)               // 1/8 prescaler -> 7.8kHz (Used in v0.9)
       // #define SPINDLE_TCCRB_INIT_MASK   ((1<<CS21) | (1<<CS20)) // 1/32 prescaler -> 1.96kHz
-      #define SPINDLE_TCCRB_INIT_MASK      (1<<CS22)               // 1/64 prescaler -> 0.98kHz (J-tech laser)
+      // #define SPINDLE_TCCRB_INIT_MASK      (1<<CS22)               // 1/64 prescaler -> 0.98kHz (J-tech laser)
 
       // NOTE: On the 328p, these must be the same as the SPINDLE_ENABLE settings.
       #define SPINDLE_PWM_DDR   DDRB

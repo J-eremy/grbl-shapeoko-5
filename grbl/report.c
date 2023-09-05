@@ -174,7 +174,11 @@ void report_init_message()
 
 // Grbl help message
 void report_grbl_help() {
+#ifndef NO_STEPPER_ENABLE
   printPgmString(PSTR("[HLP:$$ $# $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H ~ ! ? ctrl-x]\r\n"));    
+#else
+  printPgmString(PSTR("[HLP:$$ $# $G $I $N $x=val $Nx=line $J=line $C $X $H ~ ! ? ctrl-x]\r\n"));  
+#endif
 }
 
 
@@ -204,7 +208,7 @@ void report_grbl_settings() {
   report_util_float_setting(30,settings.rpm_max,N_DECIMAL_RPMVALUE);
   report_util_float_setting(31,settings.rpm_min,N_DECIMAL_RPMVALUE);
   #ifdef VARIABLE_SPINDLE
-    report_util_uint8_setting(32,bit_istrue(settings.flags,BITFLAG_LASER_MODE));
+    report_util_uint8_setting(32, get_laser_enabled());
   #else
     report_util_uint8_setting(32,0);
   #endif
@@ -579,7 +583,12 @@ void report_realtime_status()
           #endif
           #if (DUAL_AXIS_SELECT == Y_AXIS)
             if (bit_istrue(lim_pin_state,bit(X_AXIS))) { serial_write('X'); }
-            if (bit_istrue(lim_pin_state,(bit(Y_AXIS)|bit(N_AXIS)))) { serial_write('Y'); }
+            #ifdef Y2_LIMIT_REPORT
+              if (bit_istrue(lim_pin_state,(bit(Y_AXIS)))) { serial_write('Y'); }
+              if (bit_istrue(lim_pin_state,(bit(N_AXIS)))) { serial_write('A'); }
+            #else
+              if (bit_istrue(lim_pin_state,(bit(Y_AXIS)|bit(N_AXIS)))) { serial_write('Y'); }
+            #endif
           #endif
           if (bit_istrue(lim_pin_state,bit(Z_AXIS))) { serial_write('Z'); }
         #else

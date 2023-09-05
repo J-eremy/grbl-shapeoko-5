@@ -126,7 +126,11 @@ uint8_t system_execute_line(char *line)
   uint8_t helper_var = 0; // Helper variable
   float parameter, value;
   switch( line[char_counter] ) {
-    case 0 : report_grbl_help(); break;
+    case 0 : 
+#ifndef REMOVE_HELP_REPLY
+      report_grbl_help(); 
+#endif
+      break;
     case 'J' : // Jogging
       // Execute only if in IDLE or JOG states.
       if (sys.state != STATE_IDLE && sys.state != STATE_JOG) { return(STATUS_IDLE_ERROR); }
@@ -198,10 +202,12 @@ uint8_t system_execute_line(char *line)
             if (line[2] == 0) { system_execute_startup(line); }
           }
           break;
+#ifndef NO_STEPPER_ENABLE
         case 'S' : // Puts Grbl to sleep [IDLE/ALARM]
           if ((line[2] != 'L') || (line[3] != 'P') || (line[4] != 0)) { return(STATUS_INVALID_STATEMENT); }
           system_set_exec_state_flag(EXEC_SLEEP); // Set to execute sleep mode immediately
           break;
+#endif
         case 'I' : // Print or store build info. [IDLE/ALARM]
           if ( line[++char_counter] == 0 ) {
             settings_read_build_info(line);

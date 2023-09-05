@@ -224,8 +224,10 @@ static st_prep_t prep;
 void st_wake_up()
 {
   // Enable stepper drivers.
+#ifndef NO_STEPPER_ENABLE
   if (bit_istrue(settings.flags,BITFLAG_INVERT_ST_ENABLE)) { STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT); }
   else { STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT); }
+#endif
 
   // Initialize stepper output bits to ensure first ISR call does not step.
   st.step_outbits = step_port_invert_mask;
@@ -262,9 +264,13 @@ void st_go_idle()
     delay_ms(settings.stepper_idle_lock_time);
     pin_state = true; // Override. Disable steppers.
   }
+
+#ifndef NO_STEPPER_ENABLE
   if (bit_istrue(settings.flags,BITFLAG_INVERT_ST_ENABLE)) { pin_state = !pin_state; } // Apply pin invert.
   if (pin_state) { STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT); }
   else { STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT); }
+#endif
+
 }
 
 
@@ -567,7 +573,9 @@ void stepper_init()
 {
   // Configure step and direction interface pins
   STEP_DDR |= STEP_MASK;
+#ifndef NO_STEPPER_ENABLE
   STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
+#endif
   DIRECTION_DDR |= DIRECTION_MASK;
   
   #ifdef ENABLE_DUAL_AXIS
@@ -740,7 +748,7 @@ void st_prep_buffer()
           // Setup laser mode variables. PWM rate adjusted motions will always complete a motion with the
           // spindle off. 
           st_prep_block->is_pwm_rate_adjusted = false;
-          if (settings.flags & BITFLAG_LASER_MODE) {
+          if (get_laser_enabled()) {
             if (pl_block->condition & PL_COND_FLAG_SPINDLE_CCW) { 
               // Pre-compute inverse programmed rate to speed up PWM updating per step segment.
               prep.inv_rate = 1.0/pl_block->programmed_rate;

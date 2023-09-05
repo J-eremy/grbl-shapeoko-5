@@ -23,17 +23,22 @@
 
 void coolant_init()
 {
+#ifndef ENABLE_LASER_PORT
   COOLANT_FLOOD_DDR |= (1 << COOLANT_FLOOD_BIT); // Configure as output pin
   #ifdef ENABLE_M7
     COOLANT_MIST_DDR |= (1 << COOLANT_MIST_BIT);
   #endif
   coolant_stop();
+#endif
 }
 
 
 // Returns current coolant output state. Overrides may alter it from programmed state.
 uint8_t coolant_get_state()
 {
+#ifdef ENABLE_LASER_PORT
+  return 0;
+#else
   uint8_t cl_state = COOLANT_STATE_DISABLE;
   #ifdef INVERT_COOLANT_FLOOD_PIN
     if (bit_isfalse(COOLANT_FLOOD_PORT,(1 << COOLANT_FLOOD_BIT))) {
@@ -52,6 +57,7 @@ uint8_t coolant_get_state()
     }
   #endif
   return(cl_state);
+#endif
 }
 
 
@@ -59,6 +65,7 @@ uint8_t coolant_get_state()
 // an interrupt-level. No report flag set, but only called by routines that don't need it.
 void coolant_stop()
 {
+#ifndef ENABLE_LASER_PORT
   #ifdef INVERT_COOLANT_FLOOD_PIN
     COOLANT_FLOOD_PORT |= (1 << COOLANT_FLOOD_BIT);
   #else
@@ -71,6 +78,7 @@ void coolant_stop()
       COOLANT_MIST_PORT &= ~(1 << COOLANT_MIST_BIT);
     #endif
   #endif
+#endif
 }
 
 
@@ -80,6 +88,8 @@ void coolant_stop()
 // parser program end, and g-code parser coolant_sync().
 void coolant_set_state(uint8_t mode)
 {
+#ifndef ENABLE_LASER_PORT
+
   if (sys.abort) { return; } // Block during abort.  
   
 	if (mode & COOLANT_FLOOD_ENABLE) {
@@ -111,8 +121,9 @@ void coolant_set_state(uint8_t mode)
 			#endif
 		}
 	#endif
-	
+
   sys.report_ovr_counter = 0; // Set to report change immediately
+#endif
 }
 
 
@@ -120,7 +131,9 @@ void coolant_set_state(uint8_t mode)
 // if an abort or check-mode is active.
 void coolant_sync(uint8_t mode)
 {
+#ifndef ENABLE_LASER_PORT
   if (sys.state == STATE_CHECK_MODE) { return; }
   protocol_buffer_synchronize(); // Ensure coolant turns on when specified in program.
   coolant_set_state(mode);
+#endif
 }
